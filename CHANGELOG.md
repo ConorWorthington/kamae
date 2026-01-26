@@ -2,6 +2,30 @@
 
 
 
+## v2.38.1 (2026-01-26)
+
+### Chore
+
+* chore: Fix examples (#32)
+
+- Since moving to keras 3 by default in the library, most of the examples are broken.
+- Use dict not tf typespecs and if we are in keras 3 we add `.keras` to the file path ([`0004cc1`](https://github.com/ExpediaGroup/kamae/commit/0004cc1ca39dedcc8631c34fefacc41220614742))
+
+### Documentation
+
+* docs: Use proper Sphinx docs (#31)
+
+- Set the docstring style to Sphinx, this gives us proper tables for func params
+- Removed/renamed param docstrings that needed it
+- Ensured we don&#39;t have any malformed `:param` blocks ([`6a1cfe4`](https://github.com/ExpediaGroup/kamae/commit/6a1cfe4b0aa598dbce56c02f567ba3b161f903db))
+
+### Fix
+
+* fix: tf listwise segmented ops (#35)
+
+Co-authored-by: danzamora &lt;danzamora@expediagroup.com&gt; ([`b047638`](https://github.com/ExpediaGroup/kamae/commit/b047638acb39932bc20df14fe44954825014b714))
+
+
 ## v2.38.0 (2025-10-13)
 
 ### Feature
