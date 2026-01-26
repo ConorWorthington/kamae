@@ -178,9 +178,10 @@ class ListMeanLayer(BaseLayer):
                 fn=segment_mean,
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
+                    shape=val_tensor.shape[self.axis :], dtype=val_tensor.dtype
                 ),
             )
+            listwise_mean = tf.ensure_shape(listwise_mean, val_tensor.shape)
         else:
             if self.min_filter_value is not None:
                 mask = tf.math.is_finite(val_tensor)

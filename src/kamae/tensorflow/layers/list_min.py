@@ -158,9 +158,11 @@ class ListMinLayer(BaseLayer):
                 fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_min),
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
+                    shape=val_tensor.shape[self.axis :], dtype=val_tensor.dtype
                 ),
             )
+
+            listwise_min = tf.ensure_shape(listwise_min, val_tensor.shape)
         # Apply global calculation
         else:
             listwise_min = tf.reduce_min(val_tensor, axis=self.axis, keepdims=True)

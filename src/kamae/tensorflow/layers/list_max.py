@@ -157,17 +157,17 @@ class ListMaxLayer(BaseLayer):
                 fn=lambda x: segmented_operation(x, tf.math.unsorted_segment_max),
                 axis=self.axis,
                 fn_output_signature=tf.TensorSpec(
-                    shape=val_tensor.shape[self.axis], dtype=val_tensor.dtype
+                    shape=val_tensor.shape[self.axis :], dtype=val_tensor.dtype
                 ),
             )
+            listwise_max = tf.ensure_shape(listwise_max, val_tensor.shape)
         else:
             listwise_max = tf.reduce_max(val_tensor, axis=self.axis, keepdims=True)
             listwise_max = tf.broadcast_to(listwise_max, output_shape)
 
         if self.min_filter_value is not None:
-            listwise_max = tf.where(
-                listwise_max != neg_inf, listwise_max, self.nan_fill_value
-            )
+            fill_val = tf.constant(self.nan_fill_value, dtype=listwise_max.dtype)
+            listwise_max = tf.where(listwise_max != neg_inf, listwise_max, fill_val)
 
         return listwise_max
 
