@@ -56,6 +56,7 @@ class StandardScaleEstimator(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         maskValue: Optional[float] = None,
+        sampleFraction: float = 1.0,
     ) -> None:
         """
         Initializes a StandardScaleEstimator estimator.
@@ -69,10 +70,11 @@ class StandardScaleEstimator(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
          in the keras model. If not set, we use the uid of the Spark transformer.
+        :param sampleFraction: Fraction of data to sample for statistics estimation (0.0-1.0).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(maskValue=None)
+        self._setDefault(maskValue=None, sampleFraction=1.0)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
