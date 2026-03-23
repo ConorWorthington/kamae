@@ -253,6 +253,7 @@ class ConditionalStandardScaleEstimator(
         skipZeros: bool = False,
         epsilon: float = 0,
         nanFillValue: Optional[float] = None,
+        sampleFraction: float = 1.0,
     ) -> None:
         """
         Initializes a ConditionalStandardScaleEstimator estimator.
@@ -280,6 +281,7 @@ class ConditionalStandardScaleEstimator(
         when skipZeros is True. Defaults to 0.
         :param nanFillValue: Value to fill NaNs with after scaling. It is important
         to use it if epsilon filters out all the values. Defaults to None.
+        :param sampleFraction: Fraction of data to sample for statistics estimation (0.0-1.0).
         :returns: None - class instantiated.
         """
         super().__init__()
@@ -292,6 +294,7 @@ class ConditionalStandardScaleEstimator(
             skipZeros=False,
             epsilon=0,
             nanFillValue=None,
+            sampleFraction=1.0,
         )
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
