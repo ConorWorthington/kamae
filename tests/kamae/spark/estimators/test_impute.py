@@ -75,3 +75,51 @@ class TestImpute:
         assert actual.getInputCol() == input_col
         assert actual.getOutputCol() == output_col
         assert actual.getLayerName() == imputer.uid
+
+    def test_impute_default_sample_fraction(self):
+        imputer = ImputeEstimator()
+        assert imputer.getSampleFraction() == 1.0
+
+    def test_impute_sample_fraction_round_trip(self):
+        imputer = ImputeEstimator(sampleFraction=0.5)
+        assert imputer.getSampleFraction() == 0.5
+
+    @pytest.mark.parametrize("invalid_fraction", [-0.1, 1.5, 2.0, -1.0])
+    def test_impute_invalid_sample_fraction(self, invalid_fraction):
+        imputer = ImputeEstimator()
+        with pytest.raises(ValueError):
+            imputer.setSampleFraction(invalid_fraction)
+
+    def test_impute_fit_with_sample_fraction(self, example_dataframe):
+        imputer = ImputeEstimator(
+            inputCol="col1",
+            outputCol="col1_imputed",
+            maskValue=-999.0,
+            imputeMethod="mean",
+            sampleFraction=0.8,
+        )
+        result = imputer.fit(example_dataframe)
+        assert isinstance(result, ImputeTransformer)
+        assert result.getInputCol() == "col1"
+        assert result.getOutputCol() == "col1_imputed"
+        assert isinstance(result.getImputeValue(), float)
+
+    def test_impute_fit_full_fraction_matches_default(self, example_dataframe):
+        imputer_default = ImputeEstimator(
+            inputCol="col1",
+            outputCol="col1_imputed",
+            maskValue=-999.0,
+            imputeMethod="mean",
+        )
+        imputer_full = ImputeEstimator(
+            inputCol="col1",
+            outputCol="col1_imputed",
+            maskValue=-999.0,
+            imputeMethod="mean",
+            sampleFraction=1.0,
+        )
+        result_default = imputer_default.fit(example_dataframe)
+        result_full = imputer_full.fit(example_dataframe)
+        np.testing.assert_almost_equal(
+            result_default.getImputeValue(), result_full.getImputeValue()
+        )
