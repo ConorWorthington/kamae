@@ -146,3 +146,42 @@ class TestMinMaxScale:
         # then
         assert min_max_scaler.getLayerName() == min_max_scaler.uid
         assert min_max_scaler.getOutputCol() == f"{min_max_scaler.uid}__output"
+
+    def test_min_max_scaler_default_sample_fraction(self):
+        scaler = MinMaxScaleEstimator()
+        assert scaler.getSampleFraction() == 1.0
+
+    def test_min_max_scaler_sample_fraction_round_trip(self):
+        scaler = MinMaxScaleEstimator(sampleFraction=0.5)
+        assert scaler.getSampleFraction() == 0.5
+
+    @pytest.mark.parametrize("invalid_fraction", [-0.1, 1.5, 2.0, -1.0])
+    def test_min_max_scaler_invalid_sample_fraction(self, invalid_fraction):
+        scaler = MinMaxScaleEstimator()
+        with pytest.raises(ValueError):
+            scaler.setSampleFraction(invalid_fraction)
+
+    def test_min_max_scaler_fit_with_sample_fraction(self, example_dataframe):
+        scaler = MinMaxScaleEstimator(
+            inputCol="col1",
+            outputCol="scaled_features",
+            sampleFraction=0.8,
+        )
+        result = scaler.fit(example_dataframe)
+        assert isinstance(result, MinMaxScaleTransformer)
+        assert result.getInputCol() == "col1"
+        assert result.getOutputCol() == "scaled_features"
+        assert all(isinstance(v, float) for v in result.getMin())
+        assert all(isinstance(v, float) for v in result.getMax())
+
+    def test_min_max_scaler_fit_full_fraction_matches_default(self, example_dataframe):
+        scaler_default = MinMaxScaleEstimator(
+            inputCol="col1", outputCol="scaled_features"
+        )
+        scaler_full = MinMaxScaleEstimator(
+            inputCol="col1", outputCol="scaled_features", sampleFraction=1.0
+        )
+        result_default = scaler_default.fit(example_dataframe)
+        result_full = scaler_full.fit(example_dataframe)
+        np.testing.assert_array_equal(result_default.getMin(), result_full.getMin())
+        np.testing.assert_array_equal(result_default.getMax(), result_full.getMax())
