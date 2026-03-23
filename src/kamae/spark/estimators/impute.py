@@ -61,6 +61,7 @@ class ImputeEstimator(
         layerName: Optional[str] = None,
         maskValue: Optional[Union[float, int, str]] = None,
         imputeMethod: Optional[str] = None,
+        sampleFraction: float = 1.0,
     ) -> None:
         """
         Initializes a ImputeEstimator estimator.
@@ -79,10 +80,12 @@ class ImputeEstimator(
         This is also the value that is imputed over in TF at inference.
         :param imputeMethod: Method by which to compute the value to be imputed.
         Valid values are "mean" or "median".
+        :param sampleFraction: Fraction of data to sample for statistics
+         estimation (0.0-1.0).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(imputeMethod="mean")
+        self._setDefault(imputeMethod="mean", sampleFraction=1.0,)
         self.valid_impute_methods = ["mean", "median"]
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
