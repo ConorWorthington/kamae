@@ -28,6 +28,7 @@ from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.spark.params import (
     NanFillValueParams,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     StandardScaleSkipZerosParams,
 )
@@ -210,6 +211,7 @@ class ConditionalStandardScaleEstimatorParams(Params):
 
 class ConditionalStandardScaleEstimator(
     BaseEstimator,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     ConditionalStandardScaleEstimatorParams,
     StandardScaleSkipZerosParams,
