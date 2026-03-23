@@ -19,7 +19,7 @@ from pyspark.sql import DataFrame
 
 from kamae.spark.common import SparkOperation
 from kamae.spark.transformers import BaseTransformer
-from kamae.spark.params.base import SampleFractionParams
+from kamae.spark.params import SampleFractionParams
 
 if TYPE_CHECKING:
     from pyspark.ml._typing import ParamMap
