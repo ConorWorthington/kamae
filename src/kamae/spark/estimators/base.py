@@ -19,6 +19,7 @@ from pyspark.sql import DataFrame
 
 from kamae.spark.common import SparkOperation
 from kamae.spark.transformers import BaseTransformer
+from kamae.spark.params.base import SampleFractionParams
 
 if TYPE_CHECKING:
     from pyspark.ml._typing import ParamMap
@@ -57,6 +58,11 @@ class BaseEstimator(Estimator, SparkOperation):
                 dataset=dataset,
                 suffix=self.tmp_column_suffix,
             )
+
+            if isinstance(self, SampleFractionParams):
+                frac = self.getSampleFraction()
+                if 0.0 < frac < 1.0:
+                    dataset = dataset.sample(fraction=frac)
 
             # Replicate the logic from the existing abstract estimator fit method
             transformer = super().fit(dataset, params)
