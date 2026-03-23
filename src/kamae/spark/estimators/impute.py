@@ -26,6 +26,7 @@ from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 from kamae.spark.params import (
     ImputeMethodParams,
     MaskValueParams,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.transformers import ImputeTransformer
@@ -36,6 +37,7 @@ from .base import BaseEstimator
 
 class ImputeEstimator(
     BaseEstimator,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     MaskValueParams,
     ImputeMethodParams,
