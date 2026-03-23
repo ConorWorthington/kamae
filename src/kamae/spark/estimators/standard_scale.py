@@ -33,6 +33,7 @@ from .base import BaseEstimator
 
 class StandardScaleEstimator(
     BaseEstimator,
+    SampleFractionParams
     SingleInputSingleOutputParams,
     MaskValueParams,
 ):
