@@ -24,7 +24,7 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
-from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams
+from kamae.spark.params import MaskValueParams, SingleInputSingleOutputParams, SampleFractionParams
 from kamae.spark.transformers import StandardScaleTransformer
 from kamae.spark.utils import construct_nested_elements_for_scaling
 
