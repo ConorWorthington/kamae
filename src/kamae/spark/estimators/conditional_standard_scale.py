@@ -281,7 +281,8 @@ class ConditionalStandardScaleEstimator(
         when skipZeros is True. Defaults to 0.
         :param nanFillValue: Value to fill NaNs with after scaling. It is important
         to use it if epsilon filters out all the values. Defaults to None.
-        :param sampleFraction: Fraction of data to sample for statistics estimation (0.0-1.0).
+        :param sampleFraction: Fraction of data to sample for statistics 
+        estimation (0.0-1.0).
         :returns: None - class instantiated.
         """
         super().__init__()
