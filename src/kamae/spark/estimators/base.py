@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyspark.ml import Estimator
@@ -20,7 +19,6 @@ from pyspark.sql import DataFrame
 
 from kamae.spark.common import SparkOperation
 from kamae.spark.transformers import BaseTransformer
-from kamae.spark.params import SampleFractionParams
 
 if TYPE_CHECKING:
     from pyspark.ml._typing import ParamMap
@@ -60,16 +58,9 @@ class BaseEstimator(Estimator, SparkOperation):
                 suffix=self.tmp_column_suffix,
             )
 
-            if isinstance(self, SampleFractionParams):
-                frac = self.getSampleFraction()
-                if not (0.0 <= frac <= 1.0):
-                    warnings.warn(
-                        f"sampleFraction={frac} is out of range [0.0, 1.0]. "
-                        f"Skipping sampling for estimator {self.uid}.",
-                        UserWarning,
-                        stacklevel=2,
-                    )
-                elif 0.0 < frac < 1.0:
+            if self.hasParam("sampleFraction"):
+                frac = self.getOrDefault("sampleFraction")
+                if frac is not None:
                     dataset = dataset.sample(fraction=frac)
 
             # Replicate the logic from the existing abstract estimator fit method
