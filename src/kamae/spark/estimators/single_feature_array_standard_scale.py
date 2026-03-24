@@ -20,7 +20,11 @@ from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
-from kamae.spark.params import MaskValueParams, SampleFractionParams, SingleInputSingleOutputParams
+from kamae.spark.params import (
+    MaskValueParams,
+    SampleFractionParams,
+    SingleInputSingleOutputParams,
+)
 from kamae.spark.transformers import StandardScaleTransformer
 from kamae.spark.utils import flatten_nested_arrays
 
@@ -52,7 +56,7 @@ class SingleFeatureArrayStandardScaleEstimator(
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
         maskValue: Optional[float] = None,
-        sampleFraction: Optional[float] = None
+        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a SingleFeatureArrayStandardScaleEstimator estimator.
