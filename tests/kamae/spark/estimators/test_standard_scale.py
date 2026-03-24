@@ -155,13 +155,13 @@ class TestStandardScale:
 
     def test_standard_scaler_default_sample_fraction(self):
         scaler = StandardScaleEstimator()
-        assert scaler.getSampleFraction() == 1.0
+        assert scaler.getSampleFraction() is None
 
     def test_standard_scaler_sample_fraction_round_trip(self):
         scaler = StandardScaleEstimator(sampleFraction=0.5)
         assert scaler.getSampleFraction() == 0.5
 
-    @pytest.mark.parametrize("invalid_fraction", [-0.1, 1.5, 2.0, -1.0])
+    @pytest.mark.parametrize("invalid_fraction", [-0.1, 0.0, 1.0, 1.5, 2.0, -1.0])
     def test_standard_scaler_invalid_sample_fraction(self, invalid_fraction):
         scaler = StandardScaleEstimator()
         with pytest.raises(ValueError):
@@ -179,17 +179,3 @@ class TestStandardScale:
         assert result.getOutputCol() == "scaled_features"
         assert all(isinstance(v, float) for v in result.getMean())
         assert all(isinstance(v, float) for v in result.getStddev())
-
-    def test_standard_scaler_fit_full_fraction_matches_default(self, example_dataframe):
-        scaler_default = StandardScaleEstimator(
-            inputCol="col1", outputCol="scaled_features"
-        )
-        scaler_full = StandardScaleEstimator(
-            inputCol="col1", outputCol="scaled_features", sampleFraction=1.0
-        )
-        result_default = scaler_default.fit(example_dataframe)
-        result_full = scaler_full.fit(example_dataframe)
-        np.testing.assert_array_equal(result_default.getMean(), result_full.getMean())
-        np.testing.assert_array_equal(
-            result_default.getStddev(), result_full.getStddev()
-        )
