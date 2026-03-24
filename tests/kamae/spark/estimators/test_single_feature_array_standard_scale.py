@@ -148,13 +148,13 @@ class TestSingleFeatureArrayStandardScale:
 
     def test_single_feature_array_default_sample_fraction(self):
         scaler = SingleFeatureArrayStandardScaleEstimator()
-        assert scaler.getSampleFraction() == 1.0
+        assert scaler.getSampleFraction() is None
 
     def test_single_feature_array_sample_fraction_round_trip(self):
         scaler = SingleFeatureArrayStandardScaleEstimator(sampleFraction=0.5)
         assert scaler.getSampleFraction() == 0.5
 
-    @pytest.mark.parametrize("invalid_fraction", [-0.1, 1.5, 2.0, -1.0])
+    @pytest.mark.parametrize("invalid_fraction", [-0.1, 0.0, 1.0, 1.5, 2.0, -1.0])
     def test_single_feature_array_invalid_sample_fraction(self, invalid_fraction):
         scaler = SingleFeatureArrayStandardScaleEstimator()
         with pytest.raises(ValueError):
@@ -172,21 +172,3 @@ class TestSingleFeatureArrayStandardScale:
         assert result.getOutputCol() == "scaled_features"
         assert all(isinstance(v, float) for v in result.getMean())
         assert all(isinstance(v, float) for v in result.getStddev())
-
-    def test_single_feature_array_fit_full_fraction_matches_default(
-        self, example_dataframe
-    ):
-        scaler_default = SingleFeatureArrayStandardScaleEstimator(
-            inputCol="col1_col2_col3", outputCol="scaled_features"
-        )
-        scaler_full = SingleFeatureArrayStandardScaleEstimator(
-            inputCol="col1_col2_col3",
-            outputCol="scaled_features",
-            sampleFraction=1.0,
-        )
-        result_default = scaler_default.fit(example_dataframe)
-        result_full = scaler_full.fit(example_dataframe)
-        np.testing.assert_array_equal(result_default.getMean(), result_full.getMean())
-        np.testing.assert_array_equal(
-            result_default.getStddev(), result_full.getStddev()
-        )
