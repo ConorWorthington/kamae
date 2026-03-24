@@ -85,7 +85,10 @@ class ImputeEstimator(
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(imputeMethod="mean", sampleFraction=None,)
+        self._setDefault(
+            imputeMethod="mean",
+            sampleFraction=None,
+        )
         self.valid_impute_methods = ["mean", "median"]
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
