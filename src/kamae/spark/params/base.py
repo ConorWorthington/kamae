@@ -140,29 +140,28 @@ class SampleFractionParams(Params):
     sampleFraction = Param(
         Params._dummy(),
         "sampleFraction",
-        "Fraction of data to sample for statistics estimation (0.0-1.0). "
-        "Default 1.0 (no sampling).",
-        typeConverter=TypeConverters.toFloat,
+        "Fraction of data to sample for statistics estimation (exclusive 0.0-1.0). "
+        "Default None (no sampling).",
     )
 
     def setSampleFraction(self, value: float) -> "SampleFractionParams":
         """
         Sets the parameter sampleFraction to the given float value.
 
-        :param value: Float to set the sampleFraction parameter to (between 0.0 and 1.0).
-        :raises ValueError: If the sampleFraction is outside the [0.0, 1.0] range.
+        :param value: Float to set the sampleFraction parameter to (exclusive 0.0 to 1.0).
+        :raises ValueError: If the sampleFraction is outside the (0.0, 1.0) range.
         :returns: Instance of class mixed in.
         """
         val = float(value)
-        if not (0.0 <= val <= 1.0):
-            raise ValueError(f"sampleFraction must be in the range [0.0, 1.0]. Got {val}")
+        if not (0.0 < val < 1.0):
+            raise ValueError(f"sampleFraction must be in the range (0.0, 1.0). Got {val}")
         return self._set(sampleFraction=val)
 
-    def getSampleFraction(self) -> float:
+    def getSampleFraction(self) -> Optional[float]:
         """
         Gets the value of the sampleFraction parameter.
-        
-        :returns: Float representing the sample fraction.
+
+        :returns: Float representing the sample fraction, or None if not set.
         """
         return self.getOrDefault(self.sampleFraction)
 
