@@ -16,35 +16,39 @@
 # pylint: disable=invalid-name
 # pylint: disable=too-many-ancestors
 # pylint: disable=no-member
-from typing import List, Optional
+from typing import List, Optional, Union
 
-import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
-from kamae.spark.params import MaskValueParams, SampleFractionParams, SingleInputSingleOutputParams
-from kamae.spark.transformers import MinMaxScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.params import (
+    ImputeMethodParams,
+    MaskValueParams,
+    SampleFractionParams,
+    SingleInputSingleOutputParams,
+)
+from kamae.spark.transformers import ImputeTransformer
+from kamae.spark.utils import flatten_nested_arrays
 
 from .base import BaseEstimator
 
 
-class MinMaxScaleEstimator(
+class ImputeEstimator(
     BaseEstimator,
     SampleFractionParams,
     SingleInputSingleOutputParams,
     MaskValueParams,
+    ImputeMethodParams,
 ):
     """
-    Min max estimator for use in Spark pipelines.
-    This estimator is used to calculate the min and max of the input
-    feature column. When fit is called it returns a MinMaxScaleTransformer
-    which can be used to standardize/transform additional features.
-
-    WARNING: If the input is an array, we assume that the array has a constant
-    shape across all rows.
+    Imputation estimator for use in Spark pipelines.
+    This estimator is used to calculate the chosen statistic of the input
+    feature column. When fit is called it returns a ImputeTransformer
+    which can be used to impute either the mean or median of a column.
+    Rows are not included in the calculation of the statistic when they are
+    either null or equal to the supplied mask value.
     """
 
     @keyword_only
@@ -55,11 +59,12 @@ class MinMaxScaleEstimator(
         inputDtype: Optional[str] = None,
         outputDtype: Optional[str] = None,
         layerName: Optional[str] = None,
-        maskValue: Optional[float] = None,
-        sampleFraction: float = 1.0,
+        maskValue: Optional[Union[float, int, str]] = None,
+        imputeMethod: Optional[str] = None,
+        sampleFraction: Optional[float] = None,
     ) -> None:
         """
-        Initializes a MinMaxScaleEstimator estimator.
+        Initializes a ImputeEstimator estimator.
         Sets all parameters to given inputs.
 
         :param inputCol: Input column name to standardize.
@@ -70,14 +75,18 @@ class MinMaxScaleEstimator(
         transforming.
         :param layerName: Name of the layer. Used as the name of the tensorflow layer
          in the keras model. If not set, we use the uid of the Spark transformer.
-        :param maskValue: Value to use for masking. If set, these values will be ignored
-        during the computation of the min and max values.
+        :param maskValue: Value which to ignore, in addition to nulls, when
+        computing imputation statistic.
+        This is also the value that is imputed over in TF at inference.
+        :param imputeMethod: Method by which to compute the value to be imputed.
+        Valid values are "mean" or "median".
         :param sampleFraction: Fraction of data to sample for statistics
-        estimation (0.0-1.0).
+         estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(maskValue=None, sampleFraction=1.0)
+        self._setDefault(imputeMethod="mean", sampleFraction=None,)
+        self.valid_impute_methods = ["mean", "median"]
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -91,67 +100,61 @@ class MinMaxScaleEstimator(
         """
         return [FloatType(), DoubleType()]
 
-    def _fit(self, dataset: DataFrame) -> "MinMaxScaleTransformer":
+    def _fit(self, dataset: DataFrame) -> "ImputeTransformer":
         """
-        Fits the MinMaxScaleEstimator estimator to the given dataset.
-        Calculates the min and max of the input feature column and
-        returns a MinMaxScaleTransformer with the min and max set.
+        Fits the ImputeEstimator estimator to the given dataset.
+        Calculates the imputation statistic of the input feature column and
+        returns an ImputeTransformer with the statistic set.
 
         :param dataset: Pyspark dataframe to fit the estimator to.
-        :returns: MinMaxScaleTransformer instance with min & max set.
+        :returns: ImputeTransformer instance with impute value set.
         """
+        imputeMethod = self.getImputeMethod()
+
+        if imputeMethod == "mean":
+            estimator_fn = F.mean
+        elif imputeMethod == "median":
+            estimator_fn = F.median
+
         input_column_type = self.get_column_datatype(dataset, self.getInputCol())
-        if not isinstance(input_column_type, ArrayType):
-            input_col = F.array(F.col(self.getInputCol()))
-            input_column_type = ArrayType(input_column_type)
+        input_col_an_array = isinstance(input_column_type, ArrayType)
+
+        # If the column input is an array then we need to flatten and explode it to
+        # calculate the impute value
+        if input_col_an_array:
+            # Flatten the array to a single array
+            flattened_array_col = flatten_nested_arrays(
+                column=F.col(self.getInputCol()), column_data_type=input_column_type
+            )
+            processed_input_col = F.explode(flattened_array_col).alias(
+                self.uid + "_input_col"
+            )
         else:
-            input_col = F.col(self.getInputCol())
+            processed_input_col = F.col(self.getInputCol()).alias(
+                self.uid + "_input_col"
+            )
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
-
-        element_struct = construct_nested_elements_for_scaling(
-            column=input_col,
-            column_datatype=input_column_type,
-            array_dim=array_size,
+        imputeValue = (
+            dataset.select(processed_input_col)
+            .select(
+                F.when(
+                    (F.col(self.uid + "_input_col") == F.lit(self.getMaskValue()))
+                    | (F.col(self.uid + "_input_col").isNull()),
+                    None,
+                )
+                .otherwise(F.col(self.uid + "_input_col"))
+                .alias("input_col")
+            )
+            .agg(estimator_fn("input_col"))
+            .collect()[0][0]
         )
 
-        min_cols = [
-            F.min(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"min_{i}")
-            for i in range(1, array_size + 1)
-        ]
-
-        max_cols = [
-            F.max(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"max_{i}")
-            for i in range(1, array_size + 1)
-        ]
-
-        metric_cols = min_cols + max_cols
-
-        min_and_max_dict = (
-            dataset.select(element_struct).agg(*metric_cols).first().asDict()
-        )
-        min_vals = [min_and_max_dict[f"min_{i}"] for i in range(1, array_size + 1)]
-        max_vals = [min_and_max_dict[f"max_{i}"] for i in range(1, array_size + 1)]
-
-        return MinMaxScaleTransformer(
+        return ImputeTransformer(
             inputCol=self.getInputCol(),
             outputCol=self.getOutputCol(),
             layerName=self.getLayerName(),
             inputDtype=self.getInputDtype(),
             outputDtype=self.getOutputDtype(),
-            min=min_vals,
-            max=max_vals,
+            imputeValue=imputeValue,
             maskValue=self.getMaskValue(),
         )
