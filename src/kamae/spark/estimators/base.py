@@ -59,7 +59,7 @@ class BaseEstimator(Estimator, SparkOperation):
             )
 
             if self.hasParam("sampleFraction"):
-                frac = self.getOrDefault("sampleFraction")
+                frac = self.getSampleFraction()
                 if frac is not None:
                     dataset = dataset.sample(fraction=frac)
 
