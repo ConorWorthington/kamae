@@ -61,7 +61,7 @@ class ImputeEstimator(
         layerName: Optional[str] = None,
         maskValue: Optional[Union[float, int, str]] = None,
         imputeMethod: Optional[str] = None,
-        sampleFraction: float = 1.0,
+        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a ImputeEstimator estimator.
@@ -81,11 +81,11 @@ class ImputeEstimator(
         :param imputeMethod: Method by which to compute the value to be imputed.
         Valid values are "mean" or "median".
         :param sampleFraction: Fraction of data to sample for statistics
-         estimation (0.0-1.0).
+         estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(imputeMethod="mean", sampleFraction=1.0,)
+        self._setDefault(imputeMethod="mean", sampleFraction=None,)
         self.valid_impute_methods = ["mean", "median"]
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
