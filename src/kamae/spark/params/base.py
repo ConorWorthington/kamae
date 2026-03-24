@@ -154,7 +154,9 @@ class SampleFractionParams(Params):
         """
         val = float(value)
         if not (0.0 < val < 1.0):
-            raise ValueError(f"sampleFraction must be in the range (0.0, 1.0). Got {val}")
+            raise ValueError(
+                f"sampleFraction must be in the range (0.0, 1.0). Got {val}"
+            )
         return self._set(sampleFraction=val)
 
     def getSampleFraction(self) -> Optional[float]:
