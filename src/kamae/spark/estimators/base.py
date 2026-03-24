@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pyspark.ml import Estimator
@@ -61,7 +62,14 @@ class BaseEstimator(Estimator, SparkOperation):
 
             if isinstance(self, SampleFractionParams):
                 frac = self.getSampleFraction()
-                if 0.0 < frac < 1.0:
+                if not (0.0 <= frac <= 1.0):
+                    warnings.warn(
+                        f"sampleFraction={frac} is out of range [0.0, 1.0]. "
+                        f"Skipping sampling for estimator {self.uid}.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                elif 0.0 < frac < 1.0:
                     dataset = dataset.sample(fraction=frac)
 
             # Replicate the logic from the existing abstract estimator fit method
