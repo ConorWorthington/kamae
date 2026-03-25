@@ -90,7 +90,7 @@ class TestImpute:
         with pytest.raises(ValueError):
             imputer.setSampleFraction(invalid_fraction)
 
-    def test_impute_fit_with_sample_fraction(self, example_dataframe):
+    def test_impute_fit_with_sample_fraction(self, example_dataframe_large):
         imputer = ImputeEstimator(
             inputCol="col1",
             outputCol="col1_imputed",
@@ -98,7 +98,7 @@ class TestImpute:
             imputeMethod="mean",
             sampleFraction=0.8,
         )
-        result = imputer.fit(example_dataframe)
+        result = imputer.fit(example_dataframe_large)
         assert isinstance(result, ImputeTransformer)
         assert result.getInputCol() == "col1"
         assert result.getOutputCol() == "col1_imputed"
