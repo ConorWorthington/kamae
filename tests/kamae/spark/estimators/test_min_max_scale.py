@@ -161,13 +161,13 @@ class TestMinMaxScale:
         with pytest.raises(ValueError):
             scaler.setSampleFraction(invalid_fraction)
 
-    def test_min_max_scaler_fit_with_sample_fraction(self, example_dataframe):
+    def test_min_max_scaler_fit_with_sample_fraction(self, example_dataframe_large):
         scaler = MinMaxScaleEstimator(
             inputCol="col1",
             outputCol="scaled_features",
             sampleFraction=0.8,
         )
-        result = scaler.fit(example_dataframe)
+        result = scaler.fit(example_dataframe_large)
         assert isinstance(result, MinMaxScaleTransformer)
         assert result.getInputCol() == "col1"
         assert result.getOutputCol() == "scaled_features"
