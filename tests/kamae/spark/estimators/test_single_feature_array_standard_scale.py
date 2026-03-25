@@ -160,13 +160,13 @@ class TestSingleFeatureArrayStandardScale:
         with pytest.raises(ValueError):
             scaler.setSampleFraction(invalid_fraction)
 
-    def test_single_feature_array_fit_with_sample_fraction(self, example_dataframe):
+    def test_single_feature_array_fit_with_sample_fraction(self, example_dataframe_large):
         scaler = SingleFeatureArrayStandardScaleEstimator(
             inputCol="col1_col2_col3",
             outputCol="scaled_features",
             sampleFraction=0.8,
         )
-        result = scaler.fit(example_dataframe)
+        result = scaler.fit(example_dataframe_large)
         assert isinstance(result, StandardScaleTransformer)
         assert result.getInputCol() == "col1_col2_col3"
         assert result.getOutputCol() == "scaled_features"
