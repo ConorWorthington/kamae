@@ -28,6 +28,7 @@ from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 
 from kamae.spark.params import (
     NanFillValueParams,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     StandardScaleSkipZerosParams,
 )
@@ -210,6 +211,7 @@ class ConditionalStandardScaleEstimatorParams(Params):
 
 class ConditionalStandardScaleEstimator(
     BaseEstimator,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     ConditionalStandardScaleEstimatorParams,
     StandardScaleSkipZerosParams,
@@ -251,6 +253,7 @@ class ConditionalStandardScaleEstimator(
         skipZeros: bool = False,
         epsilon: float = 0,
         nanFillValue: Optional[float] = None,
+        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a ConditionalStandardScaleEstimator estimator.
@@ -278,6 +281,8 @@ class ConditionalStandardScaleEstimator(
         when skipZeros is True. Defaults to 0.
         :param nanFillValue: Value to fill NaNs with after scaling. It is important
         to use it if epsilon filters out all the values. Defaults to None.
+        :param sampleFraction: Fraction of data to sample for statistics
+        estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
@@ -290,6 +295,7 @@ class ConditionalStandardScaleEstimator(
             skipZeros=False,
             epsilon=0,
             nanFillValue=None,
+            sampleFraction=None,
         )
         kwargs = self._input_kwargs
         self.setParams(**kwargs)

@@ -60,6 +60,26 @@ def example_dataframe(spark_session):
 
 
 @pytest.fixture(scope="module")
+def example_dataframe_large(spark_session):
+    example_df = spark_session.createDataFrame(
+        [
+            (1.0, 2.0, 3.0, "a", "c", [1.0, 2.0, 3.0]),
+            (4.0, 2.0, 6.0, "b", "c", [4.0, 2.0, 6.0]),
+            (7.0, 8.0, 3.0, "a", "a", [7.0, 8.0, 3.0]),
+            (2.0, 3.0, 5.0, "a", "b", [2.0, 3.0, 5.0]),
+            (5.0, 4.0, 7.0, "b", "a", [5.0, 4.0, 7.0]),
+            (8.0, 6.0, 2.0, "a", "c", [8.0, 6.0, 2.0]),
+            (3.0, 5.0, 4.0, "b", "b", [3.0, 5.0, 4.0]),
+            (6.0, 7.0, 1.0, "a", "a", [6.0, 7.0, 1.0]),
+            (9.0, 1.0, 8.0, "b", "c", [9.0, 1.0, 8.0]),
+            (0.0, 9.0, 9.0, "a", "b", [0.0, 9.0, 9.0]),
+        ],
+        ["col1", "col2", "col3", "col4", "col5", "col1_col2_col3"],
+    )
+    return example_df
+
+
+@pytest.fixture(scope="module")
 def example_dataframe_with_singleton_array(spark_session):
     example_df = spark_session.createDataFrame(
         [

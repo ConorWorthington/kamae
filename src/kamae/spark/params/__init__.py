@@ -19,6 +19,7 @@ from .base import (  # noqa: F401 # isort:skip
     MultiInputSingleOutputParams,
     SingleInputMultiOutputParams,
     SingleInputSingleOutputParams,
+    SampleFractionParams,
     HasInputDtype,
     HasOutputDtype,
 )

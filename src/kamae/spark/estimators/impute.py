@@ -26,6 +26,7 @@ from pyspark.sql.types import ArrayType, DataType, DoubleType, FloatType
 from kamae.spark.params import (
     ImputeMethodParams,
     MaskValueParams,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
 )
 from kamae.spark.transformers import ImputeTransformer
@@ -36,6 +37,7 @@ from .base import BaseEstimator
 
 class ImputeEstimator(
     BaseEstimator,
+    SampleFractionParams,
     SingleInputSingleOutputParams,
     MaskValueParams,
     ImputeMethodParams,
@@ -59,6 +61,7 @@ class ImputeEstimator(
         layerName: Optional[str] = None,
         maskValue: Optional[Union[float, int, str]] = None,
         imputeMethod: Optional[str] = None,
+        sampleFraction: Optional[float] = None,
     ) -> None:
         """
         Initializes a ImputeEstimator estimator.
@@ -77,10 +80,15 @@ class ImputeEstimator(
         This is also the value that is imputed over in TF at inference.
         :param imputeMethod: Method by which to compute the value to be imputed.
         Valid values are "mean" or "median".
+        :param sampleFraction: Fraction of data to sample for statistics
+         estimation (exclusive 0.0-1.0). Default None (no sampling).
         :returns: None - class instantiated.
         """
         super().__init__()
-        self._setDefault(imputeMethod="mean")
+        self._setDefault(
+            imputeMethod="mean",
+            sampleFraction=None,
+        )
         self.valid_impute_methods = ["mean", "median"]
         kwargs = self._input_kwargs
         self.setParams(**kwargs)

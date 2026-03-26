@@ -146,3 +146,30 @@ class TestMinMaxScale:
         # then
         assert min_max_scaler.getLayerName() == min_max_scaler.uid
         assert min_max_scaler.getOutputCol() == f"{min_max_scaler.uid}__output"
+
+    def test_min_max_scaler_default_sample_fraction(self):
+        scaler = MinMaxScaleEstimator()
+        assert scaler.getSampleFraction() is None
+
+    def test_min_max_scaler_sample_fraction_round_trip(self):
+        scaler = MinMaxScaleEstimator(sampleFraction=0.5)
+        assert scaler.getSampleFraction() == 0.5
+
+    @pytest.mark.parametrize("invalid_fraction", [-0.1, 0.0, 1.0, 1.5, 2.0, -1.0])
+    def test_min_max_scaler_invalid_sample_fraction(self, invalid_fraction):
+        scaler = MinMaxScaleEstimator()
+        with pytest.raises(ValueError):
+            scaler.setSampleFraction(invalid_fraction)
+
+    def test_min_max_scaler_fit_with_sample_fraction(self, example_dataframe_large):
+        scaler = MinMaxScaleEstimator(
+            inputCol="col1",
+            outputCol="scaled_features",
+            sampleFraction=0.8,
+        )
+        result = scaler.fit(example_dataframe_large)
+        assert isinstance(result, MinMaxScaleTransformer)
+        assert result.getInputCol() == "col1"
+        assert result.getOutputCol() == "scaled_features"
+        assert all(isinstance(v, float) for v in result.getMin())
+        assert all(isinstance(v, float) for v in result.getMax())

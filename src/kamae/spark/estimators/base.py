@@ -58,6 +58,11 @@ class BaseEstimator(Estimator, SparkOperation):
                 suffix=self.tmp_column_suffix,
             )
 
+            if self.hasParam("sampleFraction"):
+                frac = self.getSampleFraction()
+                if frac is not None:
+                    dataset = dataset.sample(fraction=frac)
+
             # Replicate the logic from the existing abstract estimator fit method
             transformer = super().fit(dataset, params)
 

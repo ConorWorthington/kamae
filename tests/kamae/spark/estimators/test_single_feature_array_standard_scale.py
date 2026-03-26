@@ -145,3 +145,32 @@ class TestSingleFeatureArrayStandardScale:
         # then
         assert standard_scaler.getLayerName() == standard_scaler.uid
         assert standard_scaler.getOutputCol() == f"{standard_scaler.uid}__output"
+
+    def test_single_feature_array_default_sample_fraction(self):
+        scaler = SingleFeatureArrayStandardScaleEstimator()
+        assert scaler.getSampleFraction() is None
+
+    def test_single_feature_array_sample_fraction_round_trip(self):
+        scaler = SingleFeatureArrayStandardScaleEstimator(sampleFraction=0.5)
+        assert scaler.getSampleFraction() == 0.5
+
+    @pytest.mark.parametrize("invalid_fraction", [-0.1, 0.0, 1.0, 1.5, 2.0, -1.0])
+    def test_single_feature_array_invalid_sample_fraction(self, invalid_fraction):
+        scaler = SingleFeatureArrayStandardScaleEstimator()
+        with pytest.raises(ValueError):
+            scaler.setSampleFraction(invalid_fraction)
+
+    def test_single_feature_array_fit_with_sample_fraction(
+        self, example_dataframe_large
+    ):
+        scaler = SingleFeatureArrayStandardScaleEstimator(
+            inputCol="col1_col2_col3",
+            outputCol="scaled_features",
+            sampleFraction=0.8,
+        )
+        result = scaler.fit(example_dataframe_large)
+        assert isinstance(result, StandardScaleTransformer)
+        assert result.getInputCol() == "col1_col2_col3"
+        assert result.getOutputCol() == "scaled_features"
+        assert all(isinstance(v, float) for v in result.getMean())
+        assert all(isinstance(v, float) for v in result.getStddev())
