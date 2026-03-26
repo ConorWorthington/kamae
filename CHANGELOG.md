@@ -2,6 +2,117 @@
 
 
 
+## v2.39.0 (2026-03-26)
+
+### Feature
+
+* feat: Add sampling mixin to expensive preprocessing fit functions (#37)
+
+* Add mixin to scaling
+
+* Move to mixin consumption
+
+* Update standard_scale.py for mixin
+
+* Update standard_scale.py for mixin
+
+* Add sample fraction init
+
+* Move to generic import
+
+* Standard scale clean
+
+* Add sampling to min max
+
+* Update conditional_standard_scale to sample
+
+* Update single_feature_array_standard_scale to sample
+
+* Update impute to sample
+
+* Update default values for standard scale
+
+* Missing comma
+
+* Update initial values for sampling
+
+* Updated initial values
+
+* Update initial values for min max
+
+* Linting
+
+* linting
+
+* linting
+
+* Added initial values
+
+* Add test case for standard scale
+
+* Add test cases for sampling impute
+
+* Add test cases for min max scaling
+
+* Test standard scale
+
+* Add test case for single feat sampling
+
+* Add warning
+
+* Move to hasParam
+
+* Made unable to handle 0 and 1 to ensure sampling
+
+* Update conditional_standard_scale.py
+
+* Update impute.py
+
+* Update min_max_scale.py
+
+* Update single_feature_array_standard_scale.py
+
+* Update standard_scale.py
+
+* Update test_conditional_standard_scale.py
+
+* Update test_impute.py
+
+* Update test_min_max_scale.py
+
+* Update test_single_feature_array_standard_scale.py
+
+* Update test_standard_scale.py
+
+* Update min_max_scale.py
+
+* Black base handling
+
+* Black impute handling
+
+* Black min max scale
+
+* Black single feat
+
+* Black standard scale
+
+* Update for better setting
+
+* Bump for larger sampling
+
+* Bump for larger scaling
+
+* Bump for larger scaling
+
+* Bump for larger scaling
+
+* Bump for larger scaling
+
+* Bump for larger scaling
+
+* Fix for black ([`1670c9a`](https://github.com/ExpediaGroup/kamae/commit/1670c9aabd37515830a18ac102ce686a40c3895f))
+
+
 ## v2.38.1 (2026-01-26)
 
 ### Chore
