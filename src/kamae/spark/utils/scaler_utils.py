@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Optional
+
 import pyspark.sql.functions as F
-from pyspark.sql import Column
+from pyspark.sql import Column, DataFrame
 from pyspark.sql.types import DataType
 
 from kamae.spark.utils import (
@@ -75,3 +77,42 @@ def construct_nested_elements_for_scaling(
         # If the element is scalar then we wrap it in a struct to mimic
         # the same structure as the nested arrays.
         return F.struct(*elements).alias("element_struct")
+
+
+def posexplode_array_for_scaling(
+    dataset: DataFrame,
+    column: Column,
+    column_datatype: DataType,
+    additional_col_names: Optional[List[str]] = None,
+) -> DataFrame:
+    """
+    Explodes a (possibly nested) array column into rows of (pos, val), where pos is the
+    feature index within the innermost array. This replaces the O(N) struct extraction
+    approach in construct_nested_elements_for_scaling with an O(1) Catalyst plan,
+    dramatically improving performance for arrays with many features.
+
+    :param dataset: The input DataFrame.
+    :param column: The array column to explode.
+    :param column_datatype: The DataType of the array column.
+    :param additional_col_names: Optional list of column names to preserve through
+        the explosion (e.g. relevance columns needed for conditional filtering).
+    :returns: DataFrame with columns: pos (int), val (element type), plus any
+        additional columns.
+    """
+    nested_lvl, _ = get_array_nesting_level_and_element_dtype(column_datatype)
+    extra = [F.col(name) for name in (additional_col_names or [])]
+
+    if nested_lvl == 1:
+        return dataset.select(*extra, F.posexplode(column).alias("pos", "val"))
+
+    # For nested arrays, flatten outer dimensions down to 2 levels,
+    # then explode the outer level and posexplode the inner level.
+    flat_col = column
+    for _ in range(nested_lvl - 2):
+        flat_col = F.flatten(flat_col)
+    # flat_col is now Array<Array<element>>
+    outer_exploded = dataset.select(*extra, F.explode(flat_col).alias("_inner"))
+    return outer_exploded.select(
+        *extra,
+        F.posexplode(F.col("_inner")).alias("pos", "val"),
+    )
