@@ -18,7 +18,6 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
@@ -30,7 +29,7 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.transformers import StandardScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.utils import posexplode_array_for_scaling
 
 from .base import BaseEstimator
 
@@ -109,43 +108,31 @@ class StandardScaleEstimator(
         else:
             input_col = F.col(self.getInputCol())
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
-
-        element_struct = construct_nested_elements_for_scaling(
+        exploded_df = posexplode_array_for_scaling(
+            dataset=dataset,
             column=input_col,
             column_datatype=input_column_type,
-            array_dim=array_size,
         )
 
-        mean_cols = [
-            F.mean(
+        if self.getMaskValue() is not None:
+            exploded_df = exploded_df.withColumn(
+                "val",
                 F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"mean_{i}")
-            for i in range(1, array_size + 1)
-        ]
+                    F.col("val") == F.lit(self.getMaskValue()), F.lit(None)
+                ).otherwise(F.col("val")),
+            )
 
-        stddev_cols = [
-            F.stddev_pop(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"stddev_{i}")
-            for i in range(1, array_size + 1)
-        ]
-
-        metric_cols = mean_cols + stddev_cols
-
-        mean_and_stddev_dict = (
-            dataset.select(element_struct).agg(*metric_cols).first().asDict()
+        stats_rows = sorted(
+            exploded_df.groupBy("pos")
+            .agg(
+                F.mean("val").alias("mean"),
+                F.stddev_pop("val").alias("stddev"),
+            )
+            .collect(),
+            key=lambda row: row["pos"],
         )
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
+        mean = [row["mean"] for row in stats_rows]
+        stddev = [row["stddev"] for row in stats_rows]
 
         return StandardScaleTransformer(
             inputCol=self.getInputCol(),
