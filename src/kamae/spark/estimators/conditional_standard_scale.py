@@ -33,7 +33,7 @@ from kamae.spark.params import (
     StandardScaleSkipZerosParams,
 )
 from kamae.spark.transformers import ConditionalStandardScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.utils import posexplode_array_for_scaling
 from kamae.utils import get_condition_operator
 
 from .base import BaseEstimator
@@ -420,43 +420,30 @@ class ConditionalStandardScaleEstimator(
         if self.getRelevanceCol() is None:
             raise ValueError("Relevance column must be set for binary scaling.")
 
-        # Construct the elements to calculate the moments
-        element_struct = construct_nested_elements_for_scaling(
+        exploded_df = posexplode_array_for_scaling(
+            dataset=dataset,
             column=input_column,
             column_datatype=input_column_dtype,
-            array_dim=array_size,
+            additional_col_names=[self.getRelevanceCol()],
         )
 
-        count_cols = [
-            F.sum(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(1),
-                    1,
-                ).otherwise(0)
-            ).alias(f"count_{i}")
-            for i in range(1, array_size + 1)
-        ]
-        count_ones_cols = [
-            F.sum(
-                F.when(
-                    (F.col(f"element_struct.element_{i}") == F.lit(1))
-                    & (F.col(self.getRelevanceCol()) > 0),
-                    1,
-                ).otherwise(0)
-            ).alias(f"count_ones_{i}")
-            for i in range(1, array_size + 1)
-        ]
-
-        # apply the aggregations
-        metric_cols = count_cols + count_ones_cols
-        metrics_dict = (
-            dataset.withColumn("element_struct", element_struct)
-            .agg(*metric_cols)
-            .first()
-            .asDict()
+        stats_rows = sorted(
+            exploded_df.groupBy("pos")
+            .agg(
+                F.sum(F.when(F.col("val") == F.lit(1), 1).otherwise(0)).alias("count"),
+                F.sum(
+                    F.when(
+                        (F.col("val") == F.lit(1))
+                        & (F.col(self.getRelevanceCol()) > 0),
+                        1,
+                    ).otherwise(0)
+                ).alias("count_ones"),
+            )
+            .collect(),
+            key=lambda row: row["pos"],
         )
-        count = [metrics_dict[f"count_{i}"] for i in range(1, array_size + 1)]
-        count_ones = [metrics_dict[f"count_ones_{i}"] for i in range(1, array_size + 1)]
+        count = [row["count"] for row in stats_rows]
+        count_ones = [row["count_ones"] for row in stats_rows]
         if self.getNanFillValue() is not None:
             fill_val = self.getNanFillValue()
             count = [fill_val if c is None else c for c in count]
@@ -491,99 +478,48 @@ class ConditionalStandardScaleEstimator(
         :returns: ConditionalStandardScaleEstimator instance with
         mean & standard deviation set.
         """
-        # Construct the elements to calculate the moments
-        element_struct = construct_nested_elements_for_scaling(
+        additional_cols = (
+            [self.getRelevanceCol()] if self.getRelevanceCol() is not None else None
+        )
+        exploded_df = posexplode_array_for_scaling(
+            dataset=dataset,
             column=input_column,
             column_datatype=input_column_dtype,
-            array_dim=array_size,
+            additional_col_names=additional_cols,
         )
-        # Defaults
-        mean_cols = [
-            F.mean(F.col(f"element_struct.element_{i}")).alias(f"mean_{i}")
-            for i in range(1, array_size + 1)
-        ]
-        stddev_cols = [
-            F.stddev_pop(F.col(f"element_struct.element_{i}")).alias(f"stddev_{i}")
-            for i in range(1, array_size + 1)
-        ]
-        # Use relevance column and skip zeros (with epsilon)
+
+        # Build the conditional value expression based on skipZeros and relevanceCol
+        val_expr = F.col("val")
         if self.getSkipZeros() and (self.getRelevanceCol() is not None):
             eps = self.getEpsilon()
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        # x != (0 +- eps)
-                        (F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps))
-                        & (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
-            ]
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        # x != (0 +- eps)
-                        (F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps))
-                        & (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-        # Use relevance column
+            val_expr = F.when(
+                (F.abs(F.col("val")) > F.lit(eps))
+                & (F.col(self.getRelevanceCol()) > 0),
+                F.col("val"),
+            )
         elif self.getRelevanceCol() is not None:
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
-            ]
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        (F.col(self.getRelevanceCol()) > 0),
-                        F.col(f"element_struct.element_{i}"),
-                    )
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-        # Skip zeros on fit (with epsilon)
+            val_expr = F.when(
+                F.col(self.getRelevanceCol()) > 0,
+                F.col("val"),
+            )
         elif self.getSkipZeros():
             eps = self.getEpsilon()
-            mean_cols = [
-                F.mean(
-                    F.when(
-                        # x != (0 +- eps)
-                        F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps),
-                        F.col(f"element_struct.element_{i}"),
-                    ),
-                ).alias(f"mean_{i}")
-                for i in range(1, array_size + 1)
-            ]
-            stddev_cols = [
-                F.stddev_pop(
-                    F.when(
-                        # x != (0 +- eps)
-                        F.abs(F.col(f"element_struct.element_{i}")) > F.lit(eps),
-                        F.col(f"element_struct.element_{i}"),
-                    ),
-                ).alias(f"stddev_{i}")
-                for i in range(1, array_size + 1)
-            ]
-        # apply the aggregations
-        metric_cols = mean_cols + stddev_cols
-        mean_and_stddev_dict = (
-            dataset.withColumn("element_struct", element_struct)
-            .agg(*metric_cols)
-            .first()
-            .asDict()
+            val_expr = F.when(
+                F.abs(F.col("val")) > F.lit(eps),
+                F.col("val"),
+            )
+
+        stats_rows = sorted(
+            exploded_df.groupBy("pos")
+            .agg(
+                F.mean(val_expr).alias("mean"),
+                F.stddev_pop(val_expr).alias("stddev"),
+            )
+            .collect(),
+            key=lambda row: row["pos"],
         )
-        mean = [mean_and_stddev_dict[f"mean_{i}"] for i in range(1, array_size + 1)]
-        stddev = [mean_and_stddev_dict[f"stddev_{i}"] for i in range(1, array_size + 1)]
+        mean = [row["mean"] for row in stats_rows]
+        stddev = [row["stddev"] for row in stats_rows]
         if self.getNanFillValue() is not None:
             fill_val = self.getNanFillValue()
             mean = [fill_val if m is None else m for m in mean]
