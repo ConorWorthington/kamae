@@ -51,4 +51,5 @@ from .user_defined_functions import (  # noqa: F401
 
 from .scaler_utils import (  # noqa: F401 # isort:skip
     construct_nested_elements_for_scaling,
+    posexplode_array_for_scaling,
 )
