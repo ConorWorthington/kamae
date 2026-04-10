@@ -18,7 +18,6 @@
 # pylint: disable=no-member
 from typing import List, Optional
 
-import numpy as np
 import pyspark.sql.functions as F
 from pyspark import keyword_only
 from pyspark.sql import DataFrame
@@ -30,7 +29,7 @@ from kamae.spark.params import (
     SingleInputSingleOutputParams,
 )
 from kamae.spark.transformers import MinMaxScaleTransformer
-from kamae.spark.utils import construct_nested_elements_for_scaling
+from kamae.spark.utils import posexplode_array_for_scaling
 
 from .base import BaseEstimator
 
@@ -111,43 +110,31 @@ class MinMaxScaleEstimator(
         else:
             input_col = F.col(self.getInputCol())
 
-        # Collect a single row to driver and get the length.
-        # We assume all subsequent rows have the same length.
-        array_size = np.array((dataset.select(input_col).first()[0])).shape[-1]
-
-        element_struct = construct_nested_elements_for_scaling(
+        exploded_df = posexplode_array_for_scaling(
+            dataset=dataset,
             column=input_col,
             column_datatype=input_column_type,
-            array_dim=array_size,
         )
 
-        min_cols = [
-            F.min(
+        if self.getMaskValue() is not None:
+            exploded_df = exploded_df.withColumn(
+                "val",
                 F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"min_{i}")
-            for i in range(1, array_size + 1)
-        ]
+                    F.col("val") == F.lit(self.getMaskValue()), F.lit(None)
+                ).otherwise(F.col("val")),
+            )
 
-        max_cols = [
-            F.max(
-                F.when(
-                    F.col(f"element_struct.element_{i}") == F.lit(self.getMaskValue()),
-                    F.lit(None),
-                ).otherwise(F.col(f"element_struct.element_{i}"))
-            ).alias(f"max_{i}")
-            for i in range(1, array_size + 1)
-        ]
-
-        metric_cols = min_cols + max_cols
-
-        min_and_max_dict = (
-            dataset.select(element_struct).agg(*metric_cols).first().asDict()
+        stats_rows = sorted(
+            exploded_df.groupBy("pos")
+            .agg(
+                F.min("val").alias("min"),
+                F.max("val").alias("max"),
+            )
+            .collect(),
+            key=lambda row: row["pos"],
         )
-        min_vals = [min_and_max_dict[f"min_{i}"] for i in range(1, array_size + 1)]
-        max_vals = [min_and_max_dict[f"max_{i}"] for i in range(1, array_size + 1)]
+        min_vals = [row["min"] for row in stats_rows]
+        max_vals = [row["max"] for row in stats_rows]
 
         return MinMaxScaleTransformer(
             inputCol=self.getInputCol(),
