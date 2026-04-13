@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+import time
 from typing import TYPE_CHECKING, List, Optional, Type
 
 import networkx as nx
@@ -164,17 +166,46 @@ class KamaeSparkPipeline(Pipeline):
         )
         # Fit each stage, appending the transformer to the list of transformers
         # If the stage is a parent of an estimator, transform the dataset.
+        # We track accumulated transforms and use localCheckpoint before each
+        # estimator fit to truncate the lineage, preventing Catalyst plan
+        # growth from compounding across stages.
+        logger = logging.getLogger(__name__)
         transformers: List[BaseTransformer] = []
+        transforms_since_checkpoint = 0
+        previous_checkpoint = None
         for stage in expanded_pipeline_stages:
+            stage_name = getattr(stage, "uid", type(stage).__name__)
             if isinstance(stage, BaseTransformer):
                 transformers.append(stage)
                 if stage in estimator_parent_stages:
                     dataset = stage.transform(dataset)
+                    transforms_since_checkpoint += 1
             else:
+                if transforms_since_checkpoint > 0:
+                    t0 = time.time()
+                    dataset = dataset.localCheckpoint(eager=True)
+                    logger.info(
+                        "Checkpoint before %s took %.1fs "
+                        "(truncated %d transforms)",
+                        stage_name,
+                        time.time() - t0,
+                        transforms_since_checkpoint,
+                    )
+                    if previous_checkpoint is not None:
+                        previous_checkpoint.unpersist()
+                    previous_checkpoint = dataset
+                    transforms_since_checkpoint = 0
+                t0 = time.time()
                 model = stage.fit(dataset)
+                logger.info(
+                    "Fit %s took %.1fs", stage_name, time.time() - t0
+                )
                 transformers.append(model)
                 if stage in estimator_parent_stages:
                     dataset = model.transform(dataset)
+                    transforms_since_checkpoint += 1
+        if previous_checkpoint is not None:
+            previous_checkpoint.unpersist()
         return KamaeSparkPipelineModel(transformers)
 
     def copy(self, extra: Optional["ParamMap"] = None) -> "KamaeSparkPipeline":
